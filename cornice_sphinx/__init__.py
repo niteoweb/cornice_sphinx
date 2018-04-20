@@ -5,23 +5,35 @@
 """
 Sphinx extension that is able to convert a service into a documentation.
 """
-import sys
-import json
+from cornice.service import clear_services
+from cornice.service import get_services
+from cornice.util import is_string
+from cornice.util import to_list
+from docutils import core
+from docutils import nodes
+from docutils import statemachine
+from docutils.parsers.rst import Directive
+from docutils.parsers.rst import directives
+from docutils.writers.html4css1 import HTMLTranslator
+from docutils.writers.html4css1 import Writer
 from importlib import import_module
+from os.path import basename
+from pyramid.path import DottedNameResolver
+from sphinx.util.docfields import DocFieldTransformer
+
+import docutils
+import json
+import sys
+
 try:
     from importlib import reload
 except ImportError:
     pass
 
-from cornice.util import to_list, is_string
-from cornice.service import get_services, clear_services
-
-import docutils
-from docutils import nodes, core
-from docutils.parsers.rst import Directive, directives
-from docutils.writers.html4css1 import Writer, HTMLTranslator
-from pyramid.path import DottedNameResolver
-from sphinx.util.docfields import DocFieldTransformer
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 
 MODULES = {}
@@ -64,7 +76,9 @@ class ServiceDirective(Directive):
             :services: name1, name2
             :service: name1 # no need to specify both services and service.
             :ignore: a comma separated list of services names to ignore
+            :ignore-methods: a comma separated list of method names to ignore
             :docstring-replace: replace certain words in docstring
+            :title-replace: replace certain words in service title
 
 
     """
@@ -74,7 +88,9 @@ class ServiceDirective(Directive):
                    'service': directives.unchanged,
                    'services': convert_to_list,
                    'ignore': convert_to_list,
-                   'docstring-replace': from_json_to_dict}
+                   'ignore-methods': convert_to_list,
+                   'docstring-replace': from_json_to_dict,
+                   'title-replace': from_json_to_dict}
     domain = 'cornice'
     doc_field_types = []
 
@@ -143,6 +159,11 @@ class ServiceDirective(Directive):
         service_node = nodes.section(ids=[service_id])
 
         title = '%s service at %s' % (service.name.title(), service.path)
+        for replace_key, replace_value in self.options.get(
+            'title-replace', {}
+        ).items():
+            title = title.replace(replace_key, replace_value)
+
         service_node += nodes.title(text=title)
 
         if service.description is not None:
@@ -151,6 +172,10 @@ class ServiceDirective(Directive):
         for method, view, args in service.definitions:
             if method == 'HEAD':
                 # Skip head - this is essentially duplicating the get docs.
+                continue
+
+            if method in self.options.get('ignore-methods', []):
+                # Skip ignored methods
                 continue
 
             method_id = '%s-%s' % (service_id, method)
@@ -340,7 +365,40 @@ def rst2node(data, env):
         return par
 
 
+class ExecDirective(Directive):
+    """Execute the python code and inserts the output into the document."""
+    has_content = True
+
+    def run(self):
+        """Main ExecDirective method."""
+        oldStdout, sys.stdout = sys.stdout, StringIO()
+
+        tab_width = self.options.get(
+            'tab-width', self.state.document.settings.tab_width)
+        source = self.state_machine.input_lines.source(
+            self.lineno - self.state_machine.input_offset - 1)
+
+        try:
+            exec('\n'.join(self.content))
+            text = sys.stdout.getvalue()
+            lines = statemachine.string2lines(
+                text, tab_width, convert_whitespace=True)
+            self.state_machine.insert_input(lines, source)
+            return []
+        except Exception:
+            return [nodes.error(
+                None,
+                nodes.paragraph(
+                    text='Unable to execute python code at {}:{}:'.format(
+                        basename(source), self.lineno)),
+                nodes.paragraph(text=str(sys.exc_info()[1])),
+            )]
+        finally:
+            sys.stdout = oldStdout
+
+
 def setup(app):
     """Hook the directives when Sphinx ask for it."""
     app.add_directive('services', ServiceDirective)  # deprecated
     app.add_directive('cornice-autodoc', ServiceDirective)
+    app.add_directive('exec', ExecDirective)
