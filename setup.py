@@ -15,7 +15,7 @@ requires = [
     'docutils'
 ]
 
-setup(name='cornice_sphinx',
+setup(name='cornice-ext-sphinx',
     version='0.4.dev0',
     description='Generate Sphinx documentation from a Cornice application',
     long_description=README,
