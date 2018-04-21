@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.3.1 (Unreleased)
+0.3.1 (2018-04-21)
 ------------------
 
 - Add custom untested changes. The goal is to merge them upstream in chunks.
