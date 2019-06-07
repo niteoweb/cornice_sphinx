@@ -11,7 +11,7 @@ with open(os.path.join(here, 'README.rst')) as f:
 
 requires = [
     'cornice',
-    'Sphinx',
+    'sphinx<2.1',
     'docutils'
 ]
 

@@ -9,7 +9,3 @@ def main(global_config, **settings):
     config.include('cornice')
     config.include('tests.dummy.views.includeme')
     return config.make_wsgi_app()
-
-
-if __name__ == '__main__':
-    main()

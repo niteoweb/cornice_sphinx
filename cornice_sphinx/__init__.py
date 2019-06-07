@@ -267,8 +267,6 @@ def trim(docstring):
         trimmed.pop(0)
     # Return a single string:
     res = '\n'.join(trimmed)
-    if not PY3 and not isinstance(res, unicode):
-        res = res.decode('utf8')
     return res
 
 
