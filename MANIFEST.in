@@ -1,2 +1,6 @@
 include *.rst
 include LICENSE
+include *.md
+include *.png
+include tox.ini
+recursive-include tests *.py
