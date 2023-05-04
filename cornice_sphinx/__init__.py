@@ -19,11 +19,12 @@ from docutils.writers.html4css1 import Writer
 from importlib import import_module
 from os.path import basename
 from pyramid.path import DottedNameResolver
-from sphinx.util.docfields import DocFieldTransformer
+from sphinx.util.docfields import DocFieldTransformer, Field, TypedField
 
 import docutils
 import json
 import sys
+import typing as t
 
 try:
     from importlib import reload
@@ -93,6 +94,23 @@ class ServiceDirective(Directive):
                    'title-replace': from_json_to_dict}
     domain = 'cornice'
     doc_field_types = []
+
+    # Warning: this might be removed in future version. Don't touch this from extensions.
+    _doc_field_type_map: t.Dict[str, t.Tuple[Field, bool]] = {}
+
+    def get_field_type_map(self) -> t.Dict[str, t.Tuple[Field, bool]]:
+        if self._doc_field_type_map == {}:
+            self._doc_field_type_map = {}
+            for field in self.doc_field_types:
+                for name in field.names:
+                    self._doc_field_type_map[name] = (field, False)
+
+                if field.is_typed:
+                    typed_field = t.cast(TypedField, field)
+                    for name in typed_field.typenames:
+                        self._doc_field_type_map[name] = (field, True)
+
+        return self._doc_field_type_map
 
     def __init__(self, *args, **kwargs):
         super(ServiceDirective, self).__init__(*args, **kwargs)
