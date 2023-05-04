@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-0.3.2 (unreleased)
+0.4.0 (2023-05-04)
 ------------------
 
 - Add `get_field_type_map` to `ServiceDirective`. Since Sphinx 4.0 it is required.
